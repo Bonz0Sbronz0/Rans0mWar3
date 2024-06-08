@@ -1,49 +1,45 @@
 import paramiko
 import logging
-import socket
 import os
+
+# Configurazione del logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+ip = '172.31.82.235'
+
+def upload_file(client, file_path):
+    try:
+        ftp_conn = client.open_sftp()
+        #destination_path = os.path.join('\\wsl.localhost', 'Ubuntu', 'sftpusers','admin')
+        destination_path = os.path.join('local file')
+
+        ftp_conn.put(file_path, destination_path)
+        logging.info('File trasferito con successo a %s', destination_path)
+        ftp_conn.close()
+        return True
+    except Exception as e:
+        logging.error(f'Impossibile trasferire il file: {e}')
+        return False
 
 def main():
     client = paramiko.SSHClient()
-    known_hosts_path = os.path.join(os.environ['USERPROFILE'], '.ssh', 'known_hosts')
+    known_hosts_path = os.path.expanduser('~/.ssh/known_hosts')
     client.load_host_keys(known_hosts_path)
-
+    
     try:
-        client.connect('192.168.159.139', port=2200, username='rans', password='password')
+        client.connect(ip, port=22, username='admin', password='admin')
     except paramiko.SSHException as e:
-        print(f"Errore di connessione: {e}")
+        logging.error(f"Errore di connessione SSH: {e}")
         return
 
     try:
-        channel = client.get_transport().open_session()
-    except paramiko.SSHException as e:
-        print(f"Errore durante l'apertura del canale: {e}")
-        return
-
-    try:
-        while True:
-            command = input("Inserisci il comando da eseguire: ")
-            channel.send(command)
-
-            output = ""
-            logging.info('In attesa di dati dal server...')
-            while True:
-                data = channel.recv(1024).decode()
-                print(data)
-                if not data:
-                    break
-                output += data 
-            print(output)
-
-    except paramiko.SSHException as e:
-        if "closed by remote host" in str(e):
-            print("Connessione chiusa dal server.")
-        else:
-            logging.error(e)
+        # Il canale aperto non è strettamente necessario per l'upload SFTP, quindi può essere omesso.
+        upload_file(client, 'C:/Users/david/Desktop/script.txt')
+    except Exception as e:
+        logging.error(f"Errore durante l'operazione: {e}")
     finally:
-        channel.close()
+        logging.info('Connessione chiusa')
         client.close()
-        logging.info('Connessione chiusa.')
 
 if __name__ == "__main__":
     main()
